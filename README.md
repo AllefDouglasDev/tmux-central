@@ -73,14 +73,14 @@ central locks | central notes
 - **Estado**: `.central/state.json` (tasks, agentes, processos, locks) com lock entre processos. O tmux é a fonte da verdade das abas; `subcheck` reconcilia.
 - **Status**: hooks globais do Claude Code chamam `~/.claude/hooks/central.sh`, que só age em subagentes (`CENTRAL_AGENT_ID` no env) ou no pane registrado como central; nas demais sessões sai na hora. `UserPromptSubmit`/`PreToolUse` → `●`, `Notification` de permissão → `?`, `Stop` → `✓`, `SessionEnd` → `✗`.
 - **Mensagens**: ficam em `.central/inbox/<destino>/`. Se o destino está ocioso, a mensagem é colada no pane (bracketed paste + Enter); se está trabalhando, o hook `Stop` a entrega com `decision: block` e o agente continua com ela (o Claude Code mostra isso como "Stop hook error", mas é a entrega). Um novo prompt seu também entrega a fila como contexto.
-- **Subagentes**: `claude` com `--append-system-prompt-file` (papel + tasks), `--permission-mode acceptEdits`, `--allowedTools mcp__tmux-central`, `--disallowedTools Agent Task`, `--session-id` (para `resume`) e `editorMode: normal` (para a colagem de mensagens não cair no modo normal do vim). Com `--worktree`, o agente trabalha num `git worktree` em `../<projeto>-worktrees/aN`, numa branch `central/<ticket>`.
+- **Subagentes**: `claude` com `--append-system-prompt-file` (papel + tasks), `--permission-mode auto` (padrão; troque em `config.json` ou por spawn com `permission_mode`), `--allowedTools mcp__tmux-central`, `--disallowedTools Agent Task`, `--session-id` (para `resume`) e `editorMode: normal` (para a colagem de mensagens não cair no modo normal do vim). Com `--worktree`, o agente trabalha num `git worktree` em `../<projeto>-worktrees/aN`, numa branch `central/<ticket>`.
 - **Outras CLIs** (`--cli codex`, etc.): recebem papel + prompt como argumento; sem hooks, o status vem da saída da aba mudando ou não.
 
 ## Configuração (`.central/config.json`)
 
 ```json
 {
-  "agent": { "cli": "claude", "permissionMode": "acceptEdits", "blockHiddenSubagents": true, "extraArgs": [] },
+  "agent": { "cli": "claude", "permissionMode": "auto", "blockHiddenSubagents": true, "extraArgs": [] },
   "central": { "extraArgs": [] },
   "worktreeDir": "{root}/../{name}-worktrees",
   "processes": { "web": { "command": "npm run dev", "restart": true } }

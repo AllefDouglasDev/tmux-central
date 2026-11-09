@@ -29,7 +29,7 @@ export interface Config {
 export const DEFAULT_CONFIG: Config = {
   agent: {
     cli: "claude",
-    permissionMode: "acceptEdits",
+    permissionMode: "auto",
     blockHiddenSubagents: true,
     extraArgs: [],
   },

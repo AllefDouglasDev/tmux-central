@@ -167,7 +167,10 @@ export async function runServer() {
         description: z.string().optional().describe("Breve descrição para o nome da aba."),
         worktree: z.boolean().optional().describe("Trabalha num git worktree próprio."),
         cli: z.string().optional().describe("claude (padrão), codex ou outra CLI."),
-        permission_mode: z.enum(["default", "acceptEdits", "plan", "bypassPermissions", "auto"]).optional(),
+        permission_mode: z
+          .enum(["default", "acceptEdits", "plan", "bypassPermissions", "auto"])
+          .optional()
+          .describe("Padrão: auto (ou o permissionMode do .central/config.json)."),
       },
       (a) => {
         const agent = agents.spawnAgent(dir(), {
