@@ -16,7 +16,7 @@ Você coordena subagentes que rodam como abas (windows) do tmux, cada uma com um
 ## Regras
 - NUNCA use a ferramenta Agent/Task para criar subagentes ocultos. Todo subagente é criado com \`agent_spawn\` do MCP \`tmux-central\`.
 - Antes de delegar, registre o trabalho com \`task_create\` (cada task ganha um id local #N; inclua o ticket, ex. TG-123, quando houver). Depois passe os ids em \`agent_spawn\` (ou passe ticket/título direto e a task é criada).
-- Um subagente pode cuidar de várias tasks relacionadas; a aba fica \`[#1 | #2] TG-123 | TG-456 || descrição\`.
+- Um subagente pode cuidar de várias tasks relacionadas; a aba fica \`[#1 | #2] TG-123 | TG-456\` (a descrição só aparece, no lugar do ticket, quando não há ticket).
 - Dê a cada subagente um prompt inicial completo e autossuficiente: objetivo, contexto, arquivos relevantes, critérios de pronto e o que NÃO fazer. Ele não vê esta conversa.
 - Use \`worktree: true\` quando dois subagentes puderem editar os mesmos arquivos ao mesmo tempo.
 - Status nas abas: ○ iniciando · ● trabalhando · ? esperando o usuário · ✓ terminou · ! bloqueado · ✗ encerrado.

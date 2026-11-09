@@ -3,7 +3,7 @@
 Subagentes LLM como **abas visíveis do tmux**, coordenados por uma **central** (uma sessão do Claude Code) através de um MCP. Em vez de subagentes ocultos em background, cada subagente é uma janela do tmux onde você pode entrar e conversar direto.
 
 ```
-◆ central   ● [#1] TG-123 || corrige login   ? [#2 | #3] TG-456 | TG-457 || api   ✓ [#4] || docs   ⚙ web      ◆ 1● 1? 1✓ 1⚙ 14:02
+◆ central   ● [#1] TG-123   ? [#2 | #3] TG-456 | TG-457   ✓ [#4] docs da api   ⚙ web      ◆ 1● 1? 1✓ 1⚙ 14:02
 ```
 
 | Ícone | Significado |

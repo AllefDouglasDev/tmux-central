@@ -376,9 +376,9 @@ export function subcheck(dir: string, opts: { lines?: number; all?: boolean } = 
       if (next !== a.status) {
         a.status = next;
         a.updatedAt = now();
-        if (w) renames.push({ windowId: a.windowId, name: agentWindowName(s, a) });
         writeStatusMirror(dir, a.id, next);
       }
+      if (w && w.name !== agentWindowName(s, a)) renames.push({ windowId: a.windowId, name: agentWindowName(s, a) });
     }
     return structuredClone(s);
   });

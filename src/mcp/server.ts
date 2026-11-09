@@ -159,7 +159,7 @@ export async function runServer() {
 
     tool(
       "agent_spawn",
-      "Cria um subagente numa nova aba do tmux, nomeada `[#ids] tickets || descrição`. Passe task_ids existentes, ou ticket/title para criar a task na hora. O prompt deve ser autossuficiente.",
+      "Cria um subagente numa nova aba do tmux, nomeada `[#ids] tickets` (ou `[#id] descrição` quando não há ticket). Passe task_ids existentes, ou ticket/title para criar a task na hora. O prompt deve ser autossuficiente.",
       {
         prompt: z.string().describe("Instruções completas para o subagente."),
         task_ids: z.array(z.number().int()).optional(),

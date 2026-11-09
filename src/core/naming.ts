@@ -21,15 +21,15 @@ function shorten(text: string, max: number) {
 }
 
 /**
- * `<status> [#1 | #2] TG-123 | TG-456 || breve descrição`
- * Partes vazias são omitidas.
+ * `<status> [#1 | #2] TG-123 | TG-456` — com ticket, só o ticket.
+ * `<status> [#3] breve descrição` — a descrição só entra quando não há ticket.
  */
 export function windowName(status: AgentStatus, tasks: Pick<Task, "id" | "ticket">[], description?: string) {
   const parts: string[] = [STATUS_ICON[status]];
   if (tasks.length) parts.push(`[${tasks.map((t) => `#${t.id}`).join(" | ")}]`);
   const tickets = [...new Set(tasks.map((t) => t.ticket).filter(Boolean))] as string[];
   if (tickets.length) parts.push(tickets.join(" | "));
-  if (description?.trim()) parts.push(`|| ${shorten(description, MAX_DESC)}`);
+  else if (description?.trim()) parts.push(shorten(description, MAX_DESC));
   return parts.join(" ");
 }
 

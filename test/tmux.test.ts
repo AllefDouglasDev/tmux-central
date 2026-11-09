@@ -61,11 +61,11 @@ test("setup cria .central e exclui do git", () => {
 test("spawn cria aba nomeada, status renomeia, mensagens e kill", async () => {
   const a = agents.spawnAgent(dir, { prompt: "faça X", ticket: "TG-123", description: "corrige login", cli: FAKE });
   assert.equal(a.id, "a1");
-  assert.equal(t.display("#{window_name}", a.windowId), "○ [#1] TG-123 || corrige login");
+  assert.equal(t.display("#{window_name}", a.windowId), "○ [#1] TG-123");
   assert.ok(await waitFor(() => t.capture(a.paneId).includes("faça X")), "prompt chegou");
 
   agents.setStatus(dir, "a1", "working");
-  assert.equal(t.display("#{window_name}", a.windowId), "● [#1] TG-123 || corrige login");
+  assert.equal(t.display("#{window_name}", a.windowId), "● [#1] TG-123");
 
   // Trabalhando + CLI claude = fila; simulamos mudando a cli no estado.
   const { withState } = await import("../src/core/state.ts");
@@ -113,7 +113,7 @@ test("spawn cria aba nomeada, status renomeia, mensagens e kill", async () => {
 test("várias tasks no mesmo agente e subcheck detecta aba fechada", () => {
   const a = agents.spawnAgent(dir, { prompt: "p", ticket: "TG-456", title: "outra", cli: FAKE });
   const b = agents.spawnAgent(dir, { prompt: "p", taskIds: [2, 1], description: "junta", cli: FAKE });
-  assert.equal(t.display("#{window_name}", b.windowId), "○ [#2 | #1] TG-456 | TG-123 || junta");
+  assert.equal(t.display("#{window_name}", b.windowId), "○ [#2 | #1] TG-456 | TG-123");
   t.killWindow(a.windowId);
   const check = agents.subcheck(dir);
   assert.equal(check.find((x) => x.id === a.id)?.status, "dead");
