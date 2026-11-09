@@ -10,7 +10,7 @@ process.env.CENTRAL_TMUX_SOCKET = SOCKET;
 delete process.env.CENTRAL_DIR;
 delete process.env.CENTRAL_AGENT_ID;
 
-const { setup, registerCentral, report, statusLine } = await import("../src/core/project.ts");
+const { setup, registerCentral, report, statusLine, pickRows } = await import("../src/core/project.ts");
 const agents = await import("../src/core/agents.ts");
 const procs = await import("../src/core/procs.ts");
 const locks = await import("../src/core/locks.ts");
@@ -147,5 +147,110 @@ test("exited (CLI saiu) marca o agente como morto", async () => {
   const a = agents.spawnAgent(dir, { prompt: "p", title: "curto", cli: "true" });
   assert.ok(await waitFor(() => readState(dir).agents.find((x) => x.id === a.id)?.status === "dead"));
   assert.ok(await waitFor(() => t.display("#{window_name}", a.windowId).startsWith("✗")));
+  agents.killAgent(dir, a.id);
+});
+
+test("pick lista só abas vivas e falha claro sem sessão", async () => {
+  const a = agents.spawnAgent(dir, { prompt: "p", title: "picker", cli: FAKE });
+  procs.startProc(dir, { name: "api", command: "sleep 30" });
+  const proc = readState(dir).processes.find((p) => p.name === "api")!;
+  const labels = () => pickRows(dir).map((r) => r.split("\t"));
+  const rows = labels();
+  assert.deepEqual(rows[0], [t.display("#{window_id}", centralPane), "◆ central"]);
+  assert.ok(rows.some(([w, l]) => w === a.windowId && l.endsWith(`(${a.id})`)));
+  assert.ok(rows.some(([w, l]) => w === proc.windowId && l === "⚙ api  sleep 30"));
+
+  t.killWindow(proc.windowId);
+  t.killWindow(a.windowId);
+  assert.deepEqual(labels().map(([, l]) => l), ["◆ central"]);
+
+  const out = spawnSync(process.execPath, [CLI, "pick", "nao-existe"], { encoding: "utf8", env: process.env });
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /Sessão do tmux não encontrada: nao-existe/);
+  procs.stopProc(dir, "api");
+});
+
+function hook(event: string, agentId: string, payload: Record<string, unknown>) {
+  const out = spawnSync(process.execPath, [CLI, "hook", event], {
+    input: JSON.stringify(payload),
+    encoding: "utf8",
+    env: { ...process.env, CENTRAL_DIR: dir, CENTRAL_AGENT_ID: agentId },
+  });
+  assert.equal(out.status, 0, out.stderr);
+  return out.stdout;
+}
+
+test("perguntas, plano e fim de turno avisam a central", async () => {
+  const { pending: pend, takePending } = await import("../src/core/inbox.ts");
+  const { withState } = await import("../src/core/state.ts");
+  // Central ocupada: os avisos ficam na fila dela para conferirmos o texto.
+  withState(dir, (s) => {
+    s.central!.status = "working";
+  });
+  takePending(dir, "central");
+  const a = agents.spawnAgent(dir, { prompt: "p", title: "plano", cli: FAKE });
+  withState(dir, (s) => {
+    s.agents.find((x) => x.id === a.id)!.cli = "claude";
+  });
+
+  hook("ask", a.id, {
+    tool_name: "AskUserQuestion",
+    tool_use_id: "q1",
+    tool_input: { questions: [{ header: "Tipos", question: "Só inteiros?", options: [{ label: "Sim" }, { label: "Não" }] }] },
+  });
+  assert.equal(readState(dir).agents.find((x) => x.id === a.id)!.status, "waiting");
+  let msgs = takePending(dir, "central");
+  assert.equal(msgs.length, 1);
+  assert.match(msgs[0].body, /❓ PERGUNTAS[\s\S]*Só inteiros\?[\s\S]*- Não/);
+
+  // Permissão disparada pelo mesmo diálogo não duplica o aviso; ferramenta paralela não tira o "?".
+  hook("waiting", a.id, { notification_type: "permission_prompt", message: "Claude needs your permission" });
+  hook("posttool", a.id, { tool_name: "ToolSearch", tool_use_id: "x" });
+  assert.equal(pend(dir, "central").length, 0);
+  assert.equal(readState(dir).agents.find((x) => x.id === a.id)!.status, "waiting");
+  hook("posttool", a.id, { tool_name: "AskUserQuestion", tool_use_id: "q1" });
+  assert.equal(readState(dir).agents.find((x) => x.id === a.id)!.status, "working");
+
+  hook("ask", a.id, { tool_name: "ExitPlanMode", tool_use_id: "p1", tool_input: { plan: "# Plano X\n- passo 1" } });
+  msgs = takePending(dir, "central");
+  assert.match(msgs[0].body, /📋 PLANO PARA APROVAÇÃO[\s\S]*# Plano X/);
+  assert.equal(readFileSync(join(dir, "agents", a.id, "plan.md"), "utf8"), "# Plano X\n- passo 1");
+
+  hook("stop", a.id, { last_assistant_message: "Terminei a parte 1, sigo?" });
+  msgs = takePending(dir, "central");
+  assert.match(msgs[0].body, /💬 FIM DE TURNO[\s\S]*Terminei a parte 1, sigo\?/);
+  assert.equal(readState(dir).agents.find((x) => x.id === a.id)!.pendingAsk, undefined);
+
+  // Depois de um report done, o fim de turno não gera aviso repetido.
+  report(dir, a.id, "done", "pronto");
+  takePending(dir, "central");
+  hook("stop", a.id, { last_assistant_message: "pronto" });
+  assert.equal(pend(dir, "central").length, 0);
+
+  // Permissão fora de pergunta/plano avisa.
+  hook("prompt", a.id, {});
+  hook("waiting", a.id, { notification_type: "permission_prompt", message: "Claude needs your permission to use Bash" });
+  assert.match(takePending(dir, "central")[0].body, /⏸ PERMISSÃO[\s\S]*Bash/);
+  agents.killAgent(dir, a.id);
+  withState(dir, (s) => {
+    s.central!.status = "idle";
+  });
+});
+
+test("agent_plan_decision navega no diálogo e envia o feedback", async () => {
+  const { planDecision } = await import("../src/core/attention.ts");
+  const dialog = [
+    "Would you like to proceed?",
+    "❯ 1. Yes, and use auto mode",
+    "  2. Yes, manually approve edits",
+    "  3. Tell Claude what to change",
+  ].join("\\n");
+  const a = agents.spawnAgent(dir, { prompt: "p", title: "dialogo", cli: `bash -c 'printf "${dialog}\\n"; exec cat -v' fake` });
+  assert.ok(await waitFor(() => t.capture(a.paneId).includes("Tell Claude what to change")));
+  assert.throws(() => planDecision(dir, "a999", "approve"), /não existe/);
+  assert.match(planDecision(dir, a.id, "change", "use one-liner\ne sem docstring"), /Feedback enviado/);
+  // Down Down (setas viram ^[[B no cat -v) + texto numa linha só.
+  assert.ok(await waitFor(() => /\^\[\[B\^\[\[Buse one-liner e sem docstring/.test(t.capture(a.paneId))));
+  assert.throws(() => planDecision(dir, a.id, "change"), /feedback/);
   agents.killAgent(dir, a.id);
 });

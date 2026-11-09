@@ -46,6 +46,8 @@ export interface Agent {
   worktree?: { path: string; branch: string };
   lastReport?: { at: string; kind: string; text: string };
   lastOutputHash?: string;
+  /** Pergunta ou plano aguardando o usuário (AskUserQuestion / ExitPlanMode). */
+  pendingAsk?: { kind: "question" | "plan"; toolUseId?: string; at: string; planFile?: string };
   createdAt: string;
   updatedAt: string;
 }

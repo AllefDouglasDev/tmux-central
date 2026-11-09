@@ -52,12 +52,13 @@ command -v central >/dev/null && ok "central no PATH ($(command -v central))" ||
 
 echo "→ hooks do Claude Code"
 SETTINGS="$HOME/.claude/settings.json"
-if grep -q 'hooks/central.sh' "$SETTINGS" 2>/dev/null; then
+if grep -q 'hooks/central.sh ask' "$SETTINGS" 2>/dev/null; then
   ok "já configurados em ${SETTINGS/#$HOME/~}"
 else
   HOOKS='{
    "UserPromptSubmit":[{"hooks":[{"type":"command","command":"~/.claude/hooks/central.sh prompt"}]}],
-   "PreToolUse":[{"hooks":[{"type":"command","command":"~/.claude/hooks/central.sh pretool"}]}],
+   "PreToolUse":[{"hooks":[{"type":"command","command":"~/.claude/hooks/central.sh pretool"}]},
+                 {"matcher":"AskUserQuestion|ExitPlanMode","hooks":[{"type":"command","command":"~/.claude/hooks/central.sh ask"}]}],
    "PostToolUse":[{"hooks":[{"type":"command","command":"~/.claude/hooks/central.sh posttool"}]}],
    "Notification":[{"matcher":"permission_prompt|elicitation_dialog","hooks":[{"type":"command","command":"~/.claude/hooks/central.sh waiting"}]}],
    "Stop":[{"hooks":[{"type":"command","command":"~/.claude/hooks/central.sh stop"}]}],
@@ -65,7 +66,7 @@ else
   }'
   [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
   cp "$SETTINGS" "$SETTINGS.bak.central"
-  jq --argjson h "$HOOKS" '.hooks = reduce ($h|keys[]) as $k ((.hooks // {}); .[$k] = ((.[$k] // []) + $h[$k]))' \
+  jq --argjson h "$HOOKS" '.hooks = reduce ($h|keys[]) as $k ((.hooks // {}); .[$k] = ((.[$k] // []) + $h[$k] | unique_by(.hooks[0].command + (.matcher // ""))))' \
     "$SETTINGS.bak.central" > "$SETTINGS"
   ok "hooks adicionados (backup em ${SETTINGS/#$HOME/~}.bak.central)"
 fi

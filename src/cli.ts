@@ -8,12 +8,13 @@ import { listLocks, releaseLock } from "./core/locks.ts";
 import { listNotes, readNote } from "./core/notes.ts";
 import { requireCentralDir } from "./core/paths.ts";
 import { listProcs, procLogs, procUp, restartProc, startProc, stopProc } from "./core/procs.ts";
-import { dirForSession, init, registerCentral, setup, statusLine } from "./core/project.ts";
+import { dirForSession, init, pickRows, registerCentral, setup, statusLine } from "./core/project.ts";
 import { readState, withState } from "./core/state.ts";
 import { createTask, formatTasks, updateTask } from "./core/tasks.ts";
 import { STATUS_ICON } from "./core/naming.ts";
 import * as t from "./core/tmux.ts";
 import { centralCommand } from "./core/self.ts";
+import { planDecision, type PlanAction } from "./core/attention.ts";
 
 const HELP = `central — subagentes LLM como abas do tmux
 
@@ -31,6 +32,7 @@ Subagentes
   central out <aN> [--lines N]  últimas linhas da aba
   central focus <aN|central>
   central kill <aN> [--remove-worktree]
+  central plan <aN> approve|approve_manual|change ["feedback"]
   central resume <aN>           reabre a sessão do Claude do subagente na aba dele
   central pick                  escolhe uma aba com fzf (use no popup do tmux)
 
@@ -173,6 +175,15 @@ async function main(argv: string[]) {
       return print(agents.killAgent(dir(), positionals[0], { removeWorktree: Boolean(values["remove-worktree"]) }));
     }
 
+    case "plan": {
+      const [id, action, ...words] = rest;
+      if (!id || !["approve", "approve_manual", "change"].includes(action)) {
+        throw new Error('Uso: central plan <aN> approve|approve_manual|change "feedback"');
+      }
+      const agentId = id.startsWith("a") ? id : `a${id}`;
+      return print(planDecision(dir(), agentId, action as PlanAction, words.join(" ")));
+    }
+
     case "resume": {
       const d = dir();
       const a = agents.findAgent(readState(d), rest[0]);
@@ -185,23 +196,23 @@ async function main(argv: string[]) {
     }
 
     case "pick": {
+      if (rest[0] && !t.sessionExists(rest[0])) throw new Error(`Sessão do tmux não encontrada: ${rest[0]}`);
       const d = dirForSession(rest[0]);
       if (!d) throw new Error("Nenhuma central neste projeto/sessão.");
-      const s = readState(d);
-      const rows: string[] = [];
-      if (s.central) rows.push(`${s.central.windowId}\t◆ central`);
-      for (const a of agents.subcheck(d)) {
-        const ag = s.agents.find((x) => x.id === a.id)!;
-        if (a.status !== "dead") rows.push(`${ag.windowId}\t${a.window}  (${a.id})`);
-      }
-      for (const p of s.processes) rows.push(`${p.windowId}\t⚙ ${p.name}  ${p.command}`);
+      const rows = pickRows(d);
+      if (!rows.length) throw new Error("Nenhuma aba aberta da central neste projeto.");
       const r = spawnSync("fzf", ["--delimiter", "\t", "--with-nth", "2", "--prompt", "central> ", "--reverse"], {
         input: rows.join("\n"),
         stdio: ["pipe", "pipe", "inherit"],
         encoding: "utf8",
       });
+      if (r.error) throw new Error(`fzf não encontrado: ${r.error.message} (instale com: brew install fzf)`);
+      // 1 = nada casou, 130 = Esc/Ctrl-C: sair sem erro.
       const choice = r.stdout?.trim();
-      if (choice) t.focusWindow(choice.split("\t")[0]);
+      if (!choice) return;
+      const windowId = choice.split("\t")[0];
+      if (!t.tmuxOk(["display-message", "-p", "-t", windowId, "#{window_id}"])) throw new Error(`A aba ${windowId} foi fechada.`);
+      t.focusWindow(windowId);
       return;
     }
 

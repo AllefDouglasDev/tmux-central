@@ -62,6 +62,7 @@ central send a1 "mensagem"       # também: central send central "…"
 central out a1                   # últimas linhas da aba
 central focus a1 | central pick  # pick: fzf com todas as abas (Ctrl-s a no tmux)
 central kill a1 [--remove-worktree]
+central plan a1 approve          # ou approve_manual / change "o que mudar"
 central resume a1                # reabre a sessão do Claude do subagente
 central tasks [add|set]
 central proc start web npm run dev | proc logs web | proc up
@@ -73,6 +74,12 @@ central locks | central notes
 - **Estado**: `.central/state.json` (tasks, agentes, processos, locks) com lock entre processos. O tmux é a fonte da verdade das abas; `subcheck` reconcilia.
 - **Status**: hooks globais do Claude Code chamam `~/.claude/hooks/central.sh`, que só age em subagentes (`CENTRAL_AGENT_ID` no env) ou no pane registrado como central; nas demais sessões sai na hora. `UserPromptSubmit`/`PreToolUse` → `●`, `Notification` de permissão → `?`, `Stop` → `✓`, `SessionEnd` → `✗`.
 - **Mensagens**: ficam em `.central/inbox/<destino>/`. Se o destino está ocioso, a mensagem é colada no pane (bracketed paste + Enter); se está trabalhando, o hook `Stop` a entrega com `decision: block` e o agente continua com ela (o Claude Code mostra isso como "Stop hook error", mas é a entrega). Um novo prompt seu também entrega a fila como contexto.
+- **Avisos automáticos à central** (por hooks, sem depender do subagente lembrar):
+  - `❓ PERGUNTAS` quando o subagente usa AskUserQuestion: a central mostra as perguntas e você responde na aba.
+  - `📋 PLANO PARA APROVAÇÃO` quando ele chama ExitPlanMode: a central recebe o plano inteiro (cópia em `.central/agents/aN/plan.md`), resume e pergunta se você aprova ou o que mudar; a resposta volta com `agent_plan_decision` (ou `central plan aN approve|approve_manual|change "…"`), que opera o diálogo da aba.
+  - `⏸ PERMISSÃO` quando ele para pedindo permissão fora de uma pergunta/plano.
+  - `💬 FIM DE TURNO` quando ele termina um turno sem `report`, com a última mensagem dele.
+  Enquanto há pergunta/plano pendente, ferramentas paralelas não tiram a aba do `?`.
 - **Subagentes**: `claude` com `--append-system-prompt-file` (papel + tasks), `--permission-mode auto` (padrão; troque em `config.json` ou por spawn com `permission_mode`), `--allowedTools mcp__tmux-central`, `--disallowedTools Agent Task`, `--session-id` (para `resume`) e `editorMode: normal` (para a colagem de mensagens não cair no modo normal do vim). Com `--worktree`, o agente trabalha num `git worktree` em `../<projeto>-worktrees/aN`, numa branch `central/<ticket>`.
 - **Outras CLIs** (`--cli codex`, etc.): recebem papel + prompt como argumento; sem hooks, o status vem da saída da aba mudando ou não.
 

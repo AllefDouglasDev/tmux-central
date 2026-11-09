@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { setStatus } from "./agents.ts";
+import { clearAsk, onAsk, onPermission, onTool, onTurnEnd } from "./attention.ts";
 import { formatMessages, takePending } from "./inbox.ts";
 import { findCentralDir, paths } from "./paths.ts";
 import { readState } from "./state.ts";
@@ -9,11 +10,17 @@ interface HookInput {
   reason?: string;
   stop_hook_active?: boolean;
   notification_type?: string;
+  message?: string;
+  tool_name?: string;
+  tool_input?: Record<string, unknown>;
+  tool_use_id?: string;
+  last_assistant_message?: string;
 }
 
 function readStdin(): HookInput {
   try {
     const raw = readFileSync(0, "utf8");
+    if (process.env.CENTRAL_HOOK_DEBUG) appendFileSync(process.env.CENTRAL_HOOK_DEBUG, raw.trim() + "\n");
     return raw.trim() ? (JSON.parse(raw) as HookInput) : {};
   } catch {
     return {};
@@ -36,7 +43,8 @@ function identify(input: HookInput): { dir: string; who: string } | null {
 }
 
 /**
- * Eventos: prompt (UserPromptSubmit), pretool, posttool, waiting (Notification),
+ * Eventos: prompt (UserPromptSubmit), pretool, posttool, ask (PreToolUse de
+ * AskUserQuestion/ExitPlanMode), waiting (Notification),
  * stop (Stop), end (SessionEnd), exited (a CLI saiu).
  * Nunca falha: um erro aqui não pode travar o Claude.
  */
@@ -49,6 +57,7 @@ export function handleHook(event: string): string {
 
   switch (event) {
     case "prompt": {
+      clearAsk(dir, who);
       setStatus(dir, who, "working");
       const msgs = takePending(dir, who);
       if (!msgs.length) return "";
@@ -58,11 +67,15 @@ export function handleHook(event: string): string {
     }
     case "pretool":
     case "posttool":
-      setStatus(dir, who, "working", { soft: true });
+      onTool(dir, who, event === "pretool" ? "pre" : "post", input.tool_name, input.tool_use_id);
+      return "";
+    case "ask":
+      if (who === "central") setStatus(dir, who, "waiting");
+      else onAsk(dir, who, input.tool_name ?? "", input.tool_input ?? {}, input.tool_use_id);
       return "";
     case "waiting":
       if (input.notification_type === "idle_prompt") return "";
-      setStatus(dir, who, "waiting");
+      onPermission(dir, who, input.message);
       return "";
     case "stop": {
       const msgs = takePending(dir, who);
@@ -73,7 +86,8 @@ export function handleHook(event: string): string {
           reason: `Novas mensagens chegaram pelo tmux-central:\n\n${formatMessages(msgs)}`,
         });
       }
-      setStatus(dir, who, "idle", { soft: true });
+      if (who === "central") setStatus(dir, who, "idle", { soft: true });
+      else onTurnEnd(dir, who, input.last_assistant_message);
       return "";
     }
     case "end":

@@ -5,6 +5,7 @@ export const CENTRAL_RULE = `## tmux-central
 Este projeto usa o MCP \`tmux-central\`. Quando você estiver agindo como **central** (aberto por \`central init\` ou depois de \`/central:init\`):
 - Todo subagente deve ser criado com a ferramenta \`agent_spawn\` do MCP \`tmux-central\`, que abre uma aba visível no tmux. Nunca use a ferramenta Agent/Task (subagente oculto em background).
 - Acompanhe os subagentes com \`subcheck\`, fale com eles com \`agent_send\` e leia a saída com \`agent_read_output\`.
+- Ao receber \`📋 PLANO PARA APROVAÇÃO\`, resuma o plano, pergunte ao usuário se aprova ou o que mudar e responda com \`agent_plan_decision\`. Avisos \`❓ PERGUNTAS\`, \`⏸ PERMISSÃO\` e \`💬 FIM DE TURNO\` devem ser resumidos ao usuário dizendo qual aba precisa dele.
 `;
 
 export function centralSystemPrompt(project: string) {
@@ -20,6 +21,12 @@ Você coordena subagentes que rodam como abas (windows) do tmux, cada uma com um
 - Use \`worktree: true\` quando dois subagentes puderem editar os mesmos arquivos ao mesmo tempo.
 - Status nas abas: ○ iniciando · ● trabalhando · ? esperando o usuário · ✓ terminou · ! bloqueado · ✗ encerrado.
 - Mensagens dos subagentes chegam sozinhas, como texto começando com \`[central-msg aN → central]\`. Não fique consultando em loop; use \`subcheck\` quando o usuário pedir ou quando precisar decidir algo.
+- Avisos automáticos que exigem você agir na hora:
+  - \`📋 PLANO PARA APROVAÇÃO\`: resuma o plano para o usuário em poucos tópicos (o que muda, arquivos, riscos, decisões em aberto) e pergunte se aprova ou o que mudar. Com a resposta, chame \`agent_plan_decision\` (approve, approve_manual ou change com o feedback). Nunca aprove sem o usuário.
+  - \`❓ PERGUNTAS\`: mostre as perguntas ao usuário de forma resumida e diga em qual aba responder.
+  - \`⏸ PERMISSÃO\`: diga ao usuário qual aba precisa de aprovação.
+  - \`💬 FIM DE TURNO\`: o subagente parou sem report; resuma em uma ou duas frases o que ele disse e se precisa de algo.
+  - \`✓ concluído\` / \`! bloqueado\`: resuma o relato; em bloqueio, diga o que ele precisa.
 - Para recursos compartilhados (banco, migrations, porta, deploy) use \`lock_acquire\`/\`lock_release\`; para contexto compartilhado use as notas (\`note_write\`/\`note_read\`); para servidores de desenvolvimento use \`proc_start\`/\`proc_logs\`.
 - Ao fim de cada task, confira o resultado (\`agent_read_output\`, diff, testes) antes de marcá-la como feita com \`task_update\`.
 `;
@@ -37,6 +44,7 @@ Você roda numa aba do tmux criada pela CENTRAL. O usuário pode entrar nesta ab
 ${list || "- (nenhuma task registrada)"}
 
 ## Como se comunicar (MCP \`tmux-central\`)
+- Perguntas ao usuário: use a ferramenta AskUserQuestion (a central é avisada sozinha e o usuário responde nesta aba). Em plan mode, apresente o plano com ExitPlanMode: a central recebe o plano e pede a aprovação ao usuário.
 - \`report\` com kind \`progress\` em marcos relevantes, \`blocked\` quando precisar de decisão, e \`done\` com um resumo do que mudou (arquivos, testes, pendências) ao terminar. Sempre termine o trabalho com \`report\` kind \`done\` ou \`blocked\`.
 - \`message_central\` para perguntas ou avisos livres à central.
 - Mensagens da central chegam sozinhas como \`[central-msg central → ${agent.id}]\`; trate-as como instruções.

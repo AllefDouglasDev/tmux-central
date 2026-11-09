@@ -7,7 +7,7 @@ import { CENTRAL_WINDOW, STATUS_ICON } from "./naming.ts";
 import { DIR_NAME, findCentralDir, paths, projectRoot } from "./paths.ts";
 import { CENTRAL_RULE, centralSystemPrompt } from "./prompts.ts";
 import { type AgentStatus, emptyState, now, readState, stateExists, withState, writeJsonAtomic, writeStatusMirror } from "./state.ts";
-import { agentWindowName, findAgent, sendMessage } from "./agents.ts";
+import { agentWindowName, findAgent, sendMessage, subcheck } from "./agents.ts";
 import { updateTask } from "./tasks.ts";
 import { centralCommand } from "./self.ts";
 import * as t from "./tmux.ts";
@@ -175,6 +175,24 @@ export function dirForSession(session?: string): string | null {
     if (d && existsSync(d)) return d;
   }
   return findCentralDir();
+}
+
+/**
+ * Linhas do `central pick`: `<window_id>\t<rótulo>` para a central, os
+ * subagentes vivos e os processos — só abas que ainda existem no tmux.
+ */
+export function pickRows(dir: string): string[] {
+  const live = new Set(t.listWindows().map((w) => w.paneId));
+  const checks = subcheck(dir);
+  const s = readState(dir);
+  const rows: string[] = [];
+  if (s.central && live.has(s.central.paneId)) rows.push(`${s.central.windowId}\t${CENTRAL_WINDOW}`);
+  for (const a of checks) {
+    const ag = s.agents.find((x) => x.id === a.id);
+    if (ag && a.status !== "dead" && live.has(ag.paneId)) rows.push(`${ag.windowId}\t${a.window}  (${a.id})`);
+  }
+  for (const p of s.processes) if (live.has(p.paneId)) rows.push(`${p.windowId}\t⚙ ${p.name}  ${p.command}`);
+  return rows;
 }
 
 export function statusLine(dir: string | null): string {

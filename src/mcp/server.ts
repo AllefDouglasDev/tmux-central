@@ -11,6 +11,7 @@ import { registerCentral, report, setup } from "../core/project.ts";
 import { readState, withState } from "../core/state.ts";
 import { createTask, formatTasks, updateTask } from "../core/tasks.ts";
 import { currentPane } from "../core/tmux.ts";
+import { planDecision } from "../core/attention.ts";
 
 type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -207,6 +208,17 @@ export async function runServer() {
       agent: z.string(),
       lines: z.number().int().positive().optional(),
     }, ({ agent, lines }) => ok(agents.readOutput(dir(), agent, lines)));
+
+    tool(
+      "agent_plan_decision",
+      "Responde o plano que um subagente apresentou (ExitPlanMode): approve (segue em auto mode), approve_manual (segue pedindo aprovação de edições) ou change (devolve o feedback e ele revisa o plano). Use só depois que o usuário decidir.",
+      {
+        agent: z.string(),
+        action: z.enum(["approve", "approve_manual", "change"]),
+        feedback: z.string().optional().describe("Obrigatório em change: o que mudar no plano."),
+      },
+      ({ agent, action, feedback }) => ok(planDecision(dir(), agent.startsWith("a") ? agent : `a${agent}`, action, feedback)),
+    );
 
     tool("agent_focus", "Leva o usuário para a aba de um subagente (ou 'central').", { agent: z.string() }, ({ agent }) => {
       agents.focus(dir(), agent);
