@@ -121,10 +121,15 @@ export function init(opts: { claude: boolean; extraArgs: string[] }) {
     process.exit(r.status ?? 0);
   }
 
+  if (opts.claude && !(process.stdin.isTTY && process.stdout.isTTY)) {
+    throw new Error(
+      "`central init` precisa de um terminal interativo (rode num pane do tmux, não pelo `!` do Claude). Para só configurar o projeto, use `central setup`.",
+    );
+  }
   const pane = t.currentPane();
   if (!pane) throw new Error("TMUX_PANE não definido.");
   const state = readState(dir);
-  const other = state.central && state.central.paneId !== pane;
+  const other = state.central && state.central.paneId !== pane && state.central.status !== "dead";
   if (other && t.listWindows().some((w) => w.paneId === state.central!.paneId)) {
     console.error(`A central já está aberta no pane ${state.central!.paneId}; indo até ela.`);
     t.focusWindow(state.central!.windowId);
