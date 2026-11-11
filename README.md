@@ -1,6 +1,6 @@
 # tmux-central
 
-Subagentes LLM como **abas visíveis do tmux**, coordenados por uma **central** (uma sessão do Claude Code) através de um MCP. Em vez de subagentes ocultos em background, cada subagente é uma janela do tmux onde você pode entrar e conversar direto.
+Subagentes LLM como **abas visíveis do tmux**, coordenados por uma **central** (uma sessão do Claude Code) através de um MCP. Em vez de subagentes ocultos em background, cada subagente é uma janela do tmux onde você pode entrar e conversar direto, e a central é avisada sozinha quando um deles faz uma pergunta, apresenta um plano, pede permissão ou termina.
 
 ```
 ◆ central   ● [#1] TG-123   ? [#2 | #3] TG-456 | TG-457   ✓ [#4] docs da api   ⚙ web      ◆ 1● 1? 1✓ 1⚙ 14:02
@@ -8,103 +8,81 @@ Subagentes LLM como **abas visíveis do tmux**, coordenados por uma **central** 
 
 | Ícone | Significado |
 |---|---|
-| `○` | iniciando (ou parado no diálogo de confiança da pasta) |
+| `○` | iniciando |
 | `●` | trabalhando |
-| `?` | esperando você (permissão ou pergunta) |
+| `?` | esperando você (permissão, pergunta ou plano) |
 | `✓` | terminou o turno ou relatou `done` |
 | `!` | relatou `blocked` |
 | `✗` | a CLI saiu ou a aba foi fechada |
+| `⚙` | processo gerenciado (dev server, watcher) |
 
-## Instalação
+## Instalar com o seu agente
+
+> **Não quer seguir os passos à mão?** Copie o prompt de [docs/prompt-de-instalacao.md](docs/prompt-de-instalacao.md) e cole no seu agente (Claude Code, Codex, Cursor…). Ele procura um clone existente e o usa, ou clona o repositório se não houver; depois instala as dependências, roda o `install.sh`, integra com o tmux e confere se tudo funcionou, pedindo confirmação antes de mexer nos seus arquivos de configuração.
+
+## Instalação manual
+
+Requisitos: `tmux` 3.2+, `node` 23.6+, `claude` (Claude Code), `jq`, `fzf` e `git`.
 
 ```sh
+git clone <url-do-repositório> tmux-central
+cd tmux-central
 ./install.sh
 ```
 
-Confere `tmux`, `node ≥ 23.6`, `claude`, `fzf` e `jq`; instala as dependências; liga o `central` do dotfiles, o hook `~/.claude/hooks/central.sh` e os comandos `/central:*`; e garante os hooks no `~/.claude/settings.json`. Não há build: o Node executa o TypeScript direto.
+O `install.sh` instala as dependências npm, liga o `central` em `~/.local/bin`, instala o hook e os comandos `/central:*` em `~/.claude` e adiciona os hooks ao `~/.claude/settings.json`, com backup. Para a barra de status e o seletor de abas, acrescente ao `~/.tmux.conf`:
 
-## Uso
-
-Num projeto qualquer:
-
-```sh
-central init          # cria/entra na sessão tmux do projeto e abre o Claude como central
+```tmux
+set -g status-interval 5
+set -g status-right '#(central status --tmux --session "#S")%T'
+bind a display-popup -E -w 70% -h 50% -d '#{pane_current_path}' "central pick '#S'"
 ```
 
-Na primeira vez ele roda `central setup`, que:
-- cria `.central/` (estado, inbox, notas, logs) e o põe em `.git/info/exclude`;
-- registra o MCP `tmux-central` com `claude mcp add --scope local` (só para você, nada versionado);
-- grava a regra "subagentes só via `agent_spawn`" em `.claude/local/settings.md`.
+Detalhes, configuração manual dos hooks e desinstalação: [docs/instalacao.md](docs/instalacao.md).
 
-A central sobe com `--disallowedTools Agent Task`, então não consegue criar subagentes ocultos. Já dentro de um Claude no tmux, `/central:init` faz o mesmo papel (sem o bloqueio da ferramenta, só pela regra).
+## Uso rápido
 
-Depois é conversar com a central: "crie um subagente para o TG-123 que…". Ela usa `task_create` e `agent_spawn`, e a aba aparece.
+```sh
+cd meu-projeto
+central init        # cria/entra na sessão tmux do projeto e abre o Claude como central
+```
 
-### Comandos do Claude
+Depois é conversar com a central: "crie um subagente para o TG-123 que…". Ela registra a task, cria o subagente e a aba aparece. Já dentro de um Claude aberto no tmux, `/central:init` faz o mesmo papel.
 
-| Comando | O que faz |
+| Comando do Claude | O que faz |
 |---|---|
 | `/central:init` | torna a sessão atual a central |
 | `/central:spawn` | delega trabalho a um novo subagente |
 | `/central:subcheck` | status de todos os subagentes |
 | `/central:send a1 …` | mensagem para um subagente |
-| `/central:tasks` | lista/cria/atualiza tasks locais |
+| `/central:tasks` | lista, cria ou atualiza tasks locais |
 | `/central:kill a1` | encerra um subagente |
 
-### CLI
-
-`central help` lista tudo. Os principais:
-
 ```sh
-central spawn -p "prompt" --ticket TG-1 --desc "breve" [--task 1,2] [--worktree] [--cli codex]
-central subcheck [--lines 20]
-central send a1 "mensagem"       # também: central send central "…"
-central out a1                   # últimas linhas da aba
-central focus a1 | central pick  # pick: fzf com todas as abas (Ctrl-s a no tmux)
-central kill a1 [--remove-worktree]
-central plan a1 approve          # ou approve_manual / change "o que mudar"
-central resume a1                # reabre a sessão do Claude do subagente
-central tasks [add|set]
-central proc start web npm run dev | proc logs web | proc up
-central locks | central notes
+central spawn -p "prompt" --ticket TG-1 [--worktree] [--cli codex]
+central subcheck            # status das abas
+central send a1 "mensagem"
+central plan a1 approve     # ou approve_manual / change "o que mudar"
+central help                # todos os comandos
 ```
 
-## Como funciona
+## Documentação
 
-- **Estado**: `.central/state.json` (tasks, agentes, processos, locks) com lock entre processos. O tmux é a fonte da verdade das abas; `subcheck` reconcilia.
-- **Status**: hooks globais do Claude Code chamam `~/.claude/hooks/central.sh`, que só age em subagentes (`CENTRAL_AGENT_ID` no env) ou no pane registrado como central; nas demais sessões sai na hora. `UserPromptSubmit`/`PreToolUse` → `●`, `Notification` de permissão → `?`, `Stop` → `✓`, `SessionEnd` → `✗`.
-- **Mensagens**: ficam em `.central/inbox/<destino>/`. Se o destino está ocioso, a mensagem é colada no pane (bracketed paste + Enter); se está trabalhando, o hook `Stop` a entrega com `decision: block` e o agente continua com ela (o Claude Code mostra isso como "Stop hook error", mas é a entrega). Um novo prompt seu também entrega a fila como contexto.
-- **Avisos automáticos à central** (por hooks, sem depender do subagente lembrar):
-  - `❓ PERGUNTAS` quando o subagente usa AskUserQuestion: a central mostra as perguntas e você responde na aba.
-  - `📋 PLANO PARA APROVAÇÃO` quando ele chama ExitPlanMode: a central recebe o plano inteiro (cópia em `.central/agents/aN/plan.md`), resume e pergunta se você aprova ou o que mudar; a resposta volta com `agent_plan_decision` (ou `central plan aN approve|approve_manual|change "…"`), que opera o diálogo da aba.
-  - `⏸ PERMISSÃO` quando ele para pedindo permissão fora de uma pergunta/plano.
-  - `💬 FIM DE TURNO` quando ele termina um turno sem `report`, com a última mensagem dele.
-  Enquanto há pergunta/plano pendente, ferramentas paralelas não tiram a aba do `?`.
-- **Subagentes**: `claude` com `--append-system-prompt-file` (papel + tasks), `--permission-mode auto` (padrão; troque em `config.json` ou por spawn com `permission_mode`), `--allowedTools mcp__tmux-central`, `--disallowedTools Agent Task`, `--session-id` (para `resume`) e `editorMode: normal` (para a colagem de mensagens não cair no modo normal do vim). Com `--worktree`, o agente trabalha num `git worktree` em `../<projeto>-worktrees/aN`, numa branch `central/<ticket>`.
-- **Outras CLIs** (`--cli codex`, etc.): recebem papel + prompt como argumento; sem hooks, o status vem da saída da aba mudando ou não.
-
-## Configuração (`.central/config.json`)
-
-```json
-{
-  "agent": { "cli": "claude", "permissionMode": "auto", "blockHiddenSubagents": true, "extraArgs": [] },
-  "central": { "extraArgs": [] },
-  "worktreeDir": "{root}/../{name}-worktrees",
-  "processes": { "web": { "command": "npm run dev", "restart": true } }
-}
-```
-
-`extraArgs` aceita, por exemplo, `["--model", "sonnet"]`. `central proc up` sobe os `processes`.
-
-## Limitações conhecidas
-
-- Uma pasta nunca aberta no Claude (ex.: worktree novo) mostra o diálogo de confiança; a aba fica `?` até você aceitar.
-- Colar uma mensagem na central enquanto você digita nela mistura os textos; com a central ocupada, a mensagem espera o fim do turno.
-- O MCP adicionado no meio de uma sessão só carrega ao reiniciar o Claude (`central init`).
+| Documento | Conteúdo |
+|---|---|
+| [docs/prompt-de-instalacao.md](docs/prompt-de-instalacao.md) | prompt para o seu agente instalar tudo sozinho |
+| [docs/instalacao.md](docs/instalacao.md) | requisitos, `install.sh`, tmux, hooks, variáveis de ambiente, desinstalação |
+| [docs/uso.md](docs/uso.md) | fluxo de trabalho, avisos à central, mensagens, worktrees, CLI e ferramentas do MCP |
+| [docs/comandos-claude.md](docs/comandos-claude.md) | os comandos `/central:*` e o hook, na íntegra |
+| [docs/configuracao.md](docs/configuracao.md) | `.central/config.json`, funcionamento interno, limitações e desenvolvimento |
 
 ## Desenvolvimento
 
 ```sh
 npm run check   # tsc
-npm test        # node --test (usa um servidor tmux isolado, -L central-test-<pid>)
+npm test        # node --test (usa um servidor tmux isolado)
 ```
+
+## Licença
+
+[MIT](LICENSE)
