@@ -4,7 +4,8 @@
 # ═══════════════════════════════════════════════════════════════════
 #  1. Confere dependências (tmux, node ≥ 23.6, claude, fzf, jq)
 #  2. Instala as dependências npm
-#  3. Liga o dotfiles: bin/central, hook e comandos /central:* em ~/.claude
+#  3. Liga bin/central, o hook e os comandos /central:* em ~/.claude
+#     (do dotfiles, se existir; senão, de claude/ neste repositório)
 #  4. Garante os hooks do tmux-central no ~/.claude/settings.json
 #  5. Recarrega o tmux, se estiver rodando
 # ═══════════════════════════════════════════════════════════════════
@@ -45,8 +46,12 @@ if [ -d "$DOTFILES" ]; then
     link "$f" "$HOME/.claude/commands/central/$(basename "$f")"
   done
 else
-  warn "dotfiles não encontrado; linkando só o binário em ~/.local/bin"
+  warn "dotfiles não encontrado; linkando a partir deste repositório"
   link "$ROOT/bin/central" "$HOME/.local/bin/central"
+  link "$ROOT/claude/hooks/central.sh" "$HOME/.claude/hooks/central.sh"
+  for f in "$ROOT"/claude/commands/central/*.md; do
+    link "$f" "$HOME/.claude/commands/central/$(basename "$f")"
+  done
 fi
 command -v central >/dev/null && ok "central no PATH ($(command -v central))" || warn "central fora do PATH"
 
