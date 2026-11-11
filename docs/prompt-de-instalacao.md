@@ -6,7 +6,7 @@ Copie o bloco abaixo e cole no seu agente de código (Claude Code, Codex, Cursor
 Instale e integre o tmux-central nesta máquina. O tmux-central é um MCP + CLI que transforma o
 Claude Code numa "central" que delega trabalho a subagentes, cada um numa janela visível do tmux.
 
-Repositório: <URL_DO_REPOSITORIO>
+Repositório: https://github.com/AllefDouglasDev/tmux-central.git
 
 Siga os passos em ordem. Antes de editar qualquer arquivo de configuração meu (~/.tmux.conf,
 ~/.zshrc, ~/.bashrc, ~/.claude/settings.json), mostre o trecho que vai adicionar e peça a minha
@@ -21,7 +21,7 @@ que ficou pendente.
    - Se achar, use esse clone: rode `git status` e `git pull --ff-only` se a árvore estiver limpa;
      se houver mudanças locais, não faça pull e me avise.
    - Se não achar, pergunte onde clonar (sugira ~/Development/tmux-central) e rode
-     `git clone <URL_DO_REPOSITORIO> <pasta>`.
+     `git clone https://github.com/AllefDouglasDev/tmux-central.git <pasta>`.
 
 2. Dependências
    - Confira: tmux (3.2+), node (23.6+), claude (Claude Code), jq, fzf e git.
@@ -62,5 +62,3 @@ que ficou pendente.
      `/central:init`; para ver as abas, `<prefixo do tmux> a`. A documentação está em
      `docs/uso.md` dentro do repositório.
 ````
-
-Antes de compartilhar o prompt, troque `<URL_DO_REPOSITORIO>` pela URL do repositório.

@@ -16,7 +16,7 @@ No macOS: `brew install tmux node jq fzf`. Outras CLIs de subagente (`codex` etc
 ## Instalação automática
 
 ```sh
-git clone <url-do-repositório> tmux-central
+git clone https://github.com/AllefDouglasDev/tmux-central.git tmux-central
 cd tmux-central
 ./install.sh
 ```

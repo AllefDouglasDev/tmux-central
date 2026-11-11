@@ -25,7 +25,7 @@ Subagentes LLM como **abas visíveis do tmux**, coordenados por uma **central** 
 Requisitos: `tmux` 3.2+, `node` 23.6+, `claude` (Claude Code), `jq`, `fzf` e `git`.
 
 ```sh
-git clone <url-do-repositório> tmux-central
+git clone https://github.com/AllefDouglasDev/tmux-central.git tmux-central
 cd tmux-central
 ./install.sh
 ```
