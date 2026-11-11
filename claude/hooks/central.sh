@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Hooks do tmux-central: atualiza o status da aba (● ? ✓ ✗) e entrega
-# mensagens da fila. Só age em subagentes (CENTRAL_AGENT_ID no env) ou no
-# pane registrado como central; em qualquer outra sessão sai na hora.
-# Uso: central.sh prompt|pretool|posttool|waiting|stop|end  (JSON no stdin)
+# tmux-central hooks: update the window status (● ? ✓ ✗) and deliver
+# queued messages. Only acts on subagents (CENTRAL_AGENT_ID in the env) or on
+# the pane registered as the central; any other session exits right away.
+# Usage: central.sh prompt|pretool|posttool|waiting|ask|stop|end  (JSON on stdin)
 
 event="${1:-}"
 id="${CENTRAL_AGENT_ID:-}"
@@ -20,7 +20,7 @@ if [ -z "$id" ]; then
   id=central
 fi
 
-# Caminho rápido: já está "working", nada a fazer a cada ferramenta.
+# Fast path: already "working", nothing to do on every tool call.
 case "$event" in
   pretool|posttool)
     [ "$(cat "$dir/status/$id" 2>/dev/null)" = working ] && exit 0 ;;

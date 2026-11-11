@@ -16,42 +16,42 @@ import * as t from "./core/tmux.ts";
 import { centralCommand } from "./core/self.ts";
 import { planDecision, type PlanAction } from "./core/attention.ts";
 
-const HELP = `central — subagentes LLM como abas do tmux
+const HELP = `central — LLM subagents as tmux windows
 
-Projeto
-  central setup                 prepara o projeto (.central/, MCP local, regra no settings.md)
-  central init [-- args]        abre/entra na sessão do projeto e inicia o Claude como central
-  central init --no-claude      só registra o pane atual como central
-  central register              registra o pane atual como central
+Project
+  central setup                 prepares the project (.central/, local MCP, rule in settings.md)
+  central init [-- args]        opens/attaches the project session and starts Claude as the central
+  central init --no-claude      only registers the current pane as the central
+  central register              registers the current pane as the central
 
-Subagentes
+Subagents
   central spawn -p "prompt" [--ticket TG-1] [--title t] [--task 1,2] [--desc d] [--worktree] [--cli claude]
   central subcheck [--lines N] [--all] [--json]
-  central send <aN|central> <mensagem...>
-  central inbox [aN|central]    lê mensagens pendentes
-  central out <aN> [--lines N]  últimas linhas da aba
+  central send <aN|central> <message...>
+  central inbox [aN|central]    reads pending messages
+  central out <aN> [--lines N]  last lines of the window
   central focus <aN|central>
   central kill <aN> [--remove-worktree]
   central plan <aN> approve|approve_manual|change ["feedback"]
-  central resume <aN>           reabre a sessão do Claude do subagente na aba dele
-  central pick                  escolhe uma aba com fzf (use no popup do tmux)
+  central resume <aN>           reopens the subagent's Claude session in its window
+  central pick                  picks a window with fzf (use it in a tmux popup)
 
 Tasks
-  central tasks                 lista
-  central tasks add "título" [--ticket TG-1] [--desc d]
+  central tasks                 lists
+  central tasks add "title" [--ticket TG-1] [--desc d]
   central tasks set <id> [--status todo|doing|blocked|done] [--comment c]
 
-Processos, locks e notas
-  central proc start <nome> <comando...> [--cwd d] [--no-restart]
-  central proc stop|restart|logs <nome> [--lines N]
+Processes, locks and notes
+  central proc start <name> <command...> [--cwd d] [--no-restart]
+  central proc stop|restart|logs <name> [--lines N]
   central proc list | central proc up
-  central locks [release <nome>]
-  central notes [nome]
+  central locks [release <name>]
+  central notes [name]
 
-Integração
-  central status --tmux [--session S]   resumo para o status-right
-  central hook <evento>                 usado pelos hooks do Claude Code
-  central mcp                           servidor MCP (stdio)
+Integration
+  central status --tmux [--session S]   summary for status-right
+  central hook <event>                  used by the Claude Code hooks
+  central mcp                           MCP server (stdio)
 `;
 
 function opts(args: string[], options: ParseArgsOptionsConfig) {

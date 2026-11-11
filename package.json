@@ -1,7 +1,7 @@
 {
   "name": "tmux-central",
   "version": "0.1.0",
-  "description": "MCP + CLI para orquestrar subagentes LLM como abas do tmux",
+  "description": "MCP server + CLI to orchestrate LLM subagents as tmux windows",
   "license": "MIT",
   "type": "module",
   "private": true,

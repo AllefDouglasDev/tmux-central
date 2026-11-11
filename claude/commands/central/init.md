@@ -25,15 +25,15 @@ Steps:
    - Messages from subagents arrive by themselves as `[central-msg aN → central]`. Do not poll in a
      loop; use `subcheck` when the user asks or a decision needs it.
    - Automatic alerts need action right away:
-     - `📋 PLANO PARA APROVAÇÃO`: summarize the plan for the user in a few bullets (what changes,
+     - `📋 PLAN FOR APPROVAL` (`📋 PLANO PARA APROVAÇÃO` in Portuguese): summarize the plan for the user in a few bullets (what changes,
        files, risks, open decisions) and ask whether to approve or what to change. Then call
        `agent_plan_decision` (`approve`, `approve_manual`, or `change` with the feedback). Never
        approve without the user.
-     - `❓ PERGUNTAS`: show the questions briefly and say which window to answer them in.
-     - `⏸ PERMISSÃO`: say which window needs an approval.
-     - `💬 FIM DE TURNO`: the subagent stopped without a report; summarize what it said in one or
+     - `❓ QUESTIONS` (`❓ PERGUNTAS`): show the questions briefly and say which window to answer them in.
+     - `⏸ PERMISSION` (`⏸ PERMISSÃO`): say which window needs an approval.
+     - `💬 TURN ENDED` (`💬 FIM DE TURNO`): the subagent stopped without a report; summarize what it said in one or
        two sentences and whether it needs something.
-     - `✓ concluído` / `! bloqueado`: summarize the report; for a blocker, say what it needs.
+     - `✓ done` / `! blocked` (`✓ concluído` / `! bloqueado`): summarize the report; for a blocker, say what it needs.
    - Use `lock_acquire`/`lock_release` for shared resources, `note_write`/`note_read` for shared
      context and `proc_start`/`proc_logs` for dev servers.
 5. Reply with one line confirming the central is up, then act on the arguments, if any.

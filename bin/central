@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# central — CLI do tmux-central. Resolve symlinks até a raiz do projeto e
-# roda o src/cli.ts direto (Node ≥ 23.6 executa TypeScript sem build).
+# central — tmux-central CLI. Resolves symlinks up to the project root and
+# runs src/cli.ts directly (Node ≥ 23.6 runs TypeScript without a build).
 set -euo pipefail
 
 src="${BASH_SOURCE[0]}"
@@ -11,13 +11,13 @@ while [ -L "$src" ]; do
 done
 root="$(cd -P "$(dirname "$src")/.." && pwd)"
 
-# Node fixo: um .tool-versions de projeto com Node antigo não pode quebrar a central.
+# Pinned Node: a project's .tool-versions with an old Node must not break the central.
 node="${CENTRAL_NODE:-}"
 if [ -z "$node" ]; then
   for candidate in /opt/homebrew/bin/node /usr/local/bin/node "$(command -v node 2>/dev/null)"; do
     [ -x "$candidate" ] && { node="$candidate"; break; }
   done
 fi
-[ -n "$node" ] || { echo "✗ node não encontrado (defina CENTRAL_NODE)" >&2; exit 1; }
+[ -n "$node" ] || { echo "✗ node not found (set CENTRAL_NODE)" >&2; exit 1; }
 
 exec "$node" --disable-warning=ExperimentalWarning "$root/src/cli.ts" "$@"
