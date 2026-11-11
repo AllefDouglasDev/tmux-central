@@ -2,3 +2,25 @@ node_modules/
 .central/
 *.log
 .DS_Store
+
+# Material local de marketing: fontes das demos, gravações, narrações e vídeos.
+# Nada disso vai para o repositório.
+/demo/
+/docs/demo/
+demo/
+gravacoes/
+narracoes/
+videos/
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.srt
+*.vtt
+*.cast
+*.tape
+.venv/
