@@ -1,12 +1,12 @@
-# Configuração e funcionamento
+# Configuration and internals
 
 ## `.central/config.json`
 
-Criado pelo `central setup` em cada projeto. Todos os campos são opcionais; o que faltar usa o padrão.
+Created by `central setup` in each project. Every field is optional; anything missing uses the default.
 
 ```json
 {
-  "lang": "pt",
+  "lang": "en",
   "agent": { "cli": "claude", "permissionMode": "auto", "blockHiddenSubagents": true, "extraArgs": [] },
   "central": { "extraArgs": [] },
   "worktreeDir": "{root}/../{name}-worktrees",
@@ -14,50 +14,50 @@ Criado pelo `central setup` em cada projeto. Todos os campos são opcionais; o q
 }
 ```
 
-| Campo | Padrão | Efeito |
+| Field | Default | Effect |
 |---|---|---|
-| `lang` | `pt` | idioma dos avisos e dos prompts de sistema: `pt` ou `en` |
-| `agent.cli` | `claude` | CLI dos subagentes: `claude`, `codex` ou qualquer comando que aceite o prompt como argumento |
-| `agent.permissionMode` | `auto` | modo de permissão dos subagentes do Claude (`default`, `acceptEdits`, `plan`, `bypassPermissions`, `auto`); o `agent_spawn` aceita `permission_mode` por subagente |
-| `agent.blockHiddenSubagents` | `true` | passa `--disallowedTools Agent Task` aos subagentes |
-| `agent.extraArgs` | `[]` | argumentos extras para a CLI dos subagentes, por exemplo `["--model", "sonnet"]` |
-| `central.extraArgs` | `[]` | argumentos extras para o Claude da central |
-| `worktreeDir` | `{root}/../{name}-worktrees` | onde ficam os worktrees; `{root}` e `{name}` são substituídos |
-| `processes` | `{}` | processos que `central proc up` sobe (`command`, `cwd`, `restart`) |
+| `lang` | `pt` | language of the alerts and system prompts: `pt` or `en` |
+| `agent.cli` | `claude` | subagent CLI: `claude`, `codex` or any command that takes the prompt as an argument |
+| `agent.permissionMode` | `auto` | permission mode of Claude subagents (`default`, `acceptEdits`, `plan`, `bypassPermissions`, `auto`); `agent_spawn` accepts `permission_mode` per subagent |
+| `agent.blockHiddenSubagents` | `true` | passes `--disallowedTools Agent Task` to subagents |
+| `agent.extraArgs` | `[]` | extra arguments for the subagent CLI, for example `["--model", "sonnet"]` |
+| `central.extraArgs` | `[]` | extra arguments for the central's Claude |
+| `worktreeDir` | `{root}/../{name}-worktrees` | where worktrees go; `{root}` and `{name}` are replaced |
+| `processes` | `{}` | processes started by `central proc up` (`command`, `cwd`, `restart`) |
 
-## O que fica em `.central/`
+## What lives in `.central/`
 
-| Caminho | Conteúdo |
+| Path | Contents |
 |---|---|
-| `state.json` | tasks, agentes, processos e locks, gravado com lock entre processos |
-| `config.json` | a configuração acima |
-| `central.pane` | o pane do tmux registrado como central |
-| `status/<id>` | espelho do status de cada aba, lido pelo hook sem subir o Node |
-| `inbox/<destino>/` | mensagens pendentes e lidas |
-| `notes/` | notas compartilhadas |
-| `agents/aN/` | `system.md` (papel e tasks), `prompt.md`, `run.sh` e `plan.md` |
+| `state.json` | tasks, agents, processes and locks, written under a cross-process lock |
+| `config.json` | the configuration above |
+| `central.pane` | the tmux pane registered as the central |
+| `status/<id>` | a mirror of each window's status, read by the hook without starting Node |
+| `inbox/<target>/` | pending and read messages |
+| `notes/` | shared notes |
+| `agents/aN/` | `system.md` (role and tasks), `prompt.md`, `run.sh` and `plan.md` |
 
-A pasta entra em `.git/info/exclude`, então nunca é versionada.
+The folder is added to `.git/info/exclude`, so it is never committed.
 
-## Como funciona
+## How it works
 
-- **Estado**: o tmux é a fonte da verdade das abas; o `subcheck` reconcilia o `state.json` com as janelas que existem.
-- **Status**: os hooks globais do Claude Code chamam `~/.claude/hooks/central.sh`, que só age em subagentes (`CENTRAL_AGENT_ID` no ambiente) ou no pane registrado como central. `UserPromptSubmit` e `PreToolUse` marcam `●`, a `Notification` de permissão marca `?`, `Stop` marca `✓` e `SessionEnd` marca `✗`. Enquanto há pergunta ou plano pendente, ferramentas paralelas não tiram a aba do `?`.
-- **Mensagens**: ficam em `.central/inbox/<destino>/`. Com o destino ocioso, a mensagem é colada no pane (bracketed paste e Enter). Com o destino trabalhando, o hook `Stop` a entrega com `decision: block` e o agente continua com ela. Um prompt novo seu também entrega a fila como contexto.
-- **Subagentes do Claude**: sobem com `--append-system-prompt-file` (papel e tasks), `--permission-mode`, `--allowedTools mcp__tmux-central`, `--disallowedTools Agent Task`, `--session-id` (para o `central resume`) e `editorMode: normal`, para a colagem de mensagens não cair no modo normal do vim.
-- **Outras CLIs**: recebem papel e prompt como argumento; sem hooks, o status vem de a saída da aba mudar ou não.
+- **State**: tmux is the source of truth for the windows; `subcheck` reconciles `state.json` with the windows that actually exist.
+- **Status**: the global Claude Code hooks call `~/.claude/hooks/central.sh`, which only acts on subagents (`CENTRAL_AGENT_ID` in the environment) or on the pane registered as the central. `UserPromptSubmit` and `PreToolUse` set `●`, the permission `Notification` sets `?`, `Stop` sets `✓` and `SessionEnd` sets `✗`. While a question or plan is pending, parallel tool calls do not take the window out of `?`.
+- **Messages**: they are stored in `.central/inbox/<target>/`. If the target is idle, the message is pasted into the pane (bracketed paste and Enter). If the target is working, the `Stop` hook delivers it with `decision: block` and the agent carries on with it. A new prompt from you also delivers the queue as context.
+- **Claude subagents**: they start with `--append-system-prompt-file` (role and tasks), `--permission-mode`, `--allowedTools mcp__tmux-central`, `--disallowedTools Agent Task`, `--session-id` (for `central resume`) and `editorMode: normal`, so that pasted messages don't land in vim's normal mode.
+- **Other CLIs**: they get their role and prompt as an argument; without hooks, their status comes from whether the window output changes.
 
-## Limitações conhecidas
+## Known limitations
 
-- Uma pasta nunca aberta no Claude (por exemplo, um worktree novo) mostra o diálogo de confiança; a aba fica `?` até você aceitar.
-- Colar uma mensagem na central enquanto você digita nela mistura os textos; com a central ocupada, a mensagem espera o fim do turno.
-- Um MCP adicionado no meio de uma sessão só carrega quando o Claude reinicia (`central init`).
+- A folder never opened in Claude before (for example, a new worktree) shows the trust dialog; the window stays `?` until you accept it.
+- Pasting a message into the central while you are typing in it mixes the texts; while the central is busy, the message waits for the end of the turn.
+- An MCP server added mid-session only loads when Claude restarts (`central init`).
 
-## Desenvolvimento
+## Development
 
 ```sh
 npm run check   # tsc
-npm test        # node --test, com um servidor tmux isolado (-L central-test-<pid>)
+npm test        # node --test, with an isolated tmux server (-L central-test-<pid>)
 ```
 
-Não há build: o Node 23.6+ executa o TypeScript direto. O código fica em `src/cli.ts` (CLI), `src/mcp/server.ts` (MCP) e `src/core/` (estado, tmux, agentes, hooks, mensagens).
+There is no build step: Node 23.6+ runs the TypeScript directly. The code lives in `src/cli.ts` (CLI), `src/mcp/server.ts` (MCP server) and `src/core/` (state, tmux, agents, hooks, messages).

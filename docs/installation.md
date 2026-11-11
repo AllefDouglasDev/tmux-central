@@ -1,19 +1,21 @@
-# Instalação
+# Installation
 
-## Requisitos
+## Requirements
 
-| Ferramenta | Versão | Para quê |
+| Tool | Version | Why |
 |---|---|---|
-| `tmux` | 3.2+ (usa `display-popup`) | cada subagente é uma janela do tmux |
-| `node` | 23.6+ | executa o TypeScript direto, sem build |
-| `claude` (Claude Code) | atual | central e subagentes |
-| `jq` | qualquer | o `install.sh` edita o `~/.claude/settings.json` |
-| `fzf` | qualquer | `central pick`, o seletor de abas |
-| `git` | 2.5+ | só para `--worktree` |
+| `tmux` | 3.2+ (uses `display-popup`) | every subagent is a tmux window |
+| `node` | 23.6+ | runs the TypeScript directly, with no build step |
+| `claude` (Claude Code) | current | the central and the subagents |
+| `jq` | any | `install.sh` edits `~/.claude/settings.json` |
+| `fzf` | any | `central pick`, the window picker |
+| `git` | 2.5+ | only for `--worktree` |
 
-No macOS: `brew install tmux node jq fzf`. Outras CLIs de subagente (`codex` etc.) são opcionais.
+On macOS: `brew install tmux node jq fzf`. Other subagent CLIs (`codex`, etc.) are optional.
 
-## Instalação automática
+Prefer to let an agent do it? See [agent-install-prompt.md](agent-install-prompt.md).
+
+## Automatic installation
 
 ```sh
 git clone https://github.com/AllefDouglasDev/tmux-central.git tmux-central
@@ -21,41 +23,41 @@ cd tmux-central
 ./install.sh
 ```
 
-O `install.sh` é idempotente e:
+`install.sh` is idempotent and:
 
-1. Confere as dependências e a versão do Node.
-2. Roda `npm ci`.
-3. Cria os links:
+1. Checks the dependencies and the Node version.
+2. Runs `npm ci`.
+3. Creates the links:
    - `~/.local/bin/central` → `bin/central`;
    - `~/.claude/hooks/central.sh` → `claude/hooks/central.sh`;
-   - `~/.claude/commands/central/*.md` → `claude/commands/central/*.md` (os comandos `/central:*`).
+   - `~/.claude/commands/central/*.md` → `claude/commands/central/*.md` (the `/central:*` commands).
 
-   Se existir um dotfiles em `$DOTFILES` (padrão `~/Development/personal/dotfiles`), os links apontam para ele em vez deste repositório. Um arquivo que já existia no destino é movido para `<arquivo>.bak.<timestamp>`.
-4. Acrescenta os hooks do tmux-central ao `~/.claude/settings.json`, com backup em `~/.claude/settings.json.bak.central`.
-5. Recarrega o tmux, se ele estiver rodando.
+   If a dotfiles repository exists at `$DOTFILES` (default `~/Development/personal/dotfiles`), the links point there instead of this repository. A file that already existed at the destination is moved to `<file>.bak.<timestamp>`.
+4. Adds the tmux-central hooks to `~/.claude/settings.json`, with a backup at `~/.claude/settings.json.bak.central`.
+5. Reloads tmux, if it is running.
 
-Confira se `~/.local/bin` está no `PATH`:
+Make sure `~/.local/bin` is on your `PATH`:
 
 ```sh
 command -v central || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 ```
 
-## Integração com o tmux (manual)
+## tmux integration (manual)
 
-O `install.sh` não mexe no `~/.tmux.conf`. Para ter o resumo dos subagentes na barra de status e o seletor de abas, acrescente:
+`install.sh` does not touch `~/.tmux.conf`. For the subagent summary in the status bar and the window picker, add:
 
 ```tmux
-# tmux-central: resumo dos subagentes (◆ 2● 1? 3✓) e seletor de abas
+# tmux-central: subagent summary (◆ 2● 1? 3✓) and window picker
 set -g status-interval 5
 set -g status-right '#(central status --tmux --session "#S")%T'
 bind a display-popup -E -w 70% -h 50% -d '#{pane_current_path}' "central pick '#S'"
 ```
 
-Com isso, `<prefixo> a` abre o seletor com `fzf`. Recarregue com `tmux source-file ~/.tmux.conf`.
+With this, `<prefix> a` opens the `fzf` picker. Reload with `tmux source-file ~/.tmux.conf`.
 
-## Hooks do Claude Code
+## Claude Code hooks
 
-Os hooks são globais, mas o `central.sh` só age em subagentes (`CENTRAL_AGENT_ID` no ambiente) ou no pane registrado como central; em qualquer outra sessão ele sai na hora. Se preferir configurar à mão, este é o trecho que o `install.sh` mescla em `~/.claude/settings.json`:
+The hooks are global, but `central.sh` only acts on subagents (`CENTRAL_AGENT_ID` in the environment) or on the pane registered as the central; in any other session it exits right away. If you prefer to set them up by hand, this is the snippet `install.sh` merges into `~/.claude/settings.json`:
 
 ```json
 {
@@ -75,19 +77,19 @@ Os hooks são globais, mas o `central.sh` só age em subagentes (`CENTRAL_AGENT_
 }
 ```
 
-## Variáveis de ambiente
+## Environment variables
 
-| Variável | Efeito |
+| Variable | Effect |
 |---|---|
-| `CENTRAL_NODE` | caminho do Node usado pelo `central` (útil quando um `.tool-versions` do projeto fixa um Node antigo) |
-| `CENTRAL_LANG=en` | no `central setup`, cria o `config.json` com avisos e prompts em inglês |
-| `DOTFILES` | onde o `install.sh` procura o dotfiles |
+| `CENTRAL_NODE` | path of the Node binary `central` uses (useful when a project's `.tool-versions` pins an old Node) |
+| `CENTRAL_LANG=en` | makes `central setup` create `config.json` with alerts and prompts in English |
+| `DOTFILES` | where `install.sh` looks for a dotfiles repository |
 
-## Desinstalar
+## Uninstalling
 
 ```sh
 rm ~/.local/bin/central ~/.claude/hooks/central.sh
 rm -r ~/.claude/commands/central
 ```
 
-Depois remova as entradas `central.sh` dos hooks no `~/.claude/settings.json` e, em cada projeto, apague `.central/` e rode `claude mcp remove tmux-central --scope local`.
+Then remove the `central.sh` entries from the hooks in `~/.claude/settings.json` and, in each project, delete `.central/` and run `claude mcp remove tmux-central --scope local`.

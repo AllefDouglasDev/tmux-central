@@ -1,21 +1,21 @@
-# Comandos do Claude (`/central:*`)
+# Claude commands (`/central:*`)
 
-Os comandos ficam em [`claude/commands/central/`](../claude/commands/central/) e o `install.sh` os liga em `~/.claude/commands/central/`, onde o Claude Code os expõe como `/central:<nome>`. Para instalar à mão, copie os arquivos para essa pasta. Todos usam as ferramentas do MCP `tmux-central`, então o projeto precisa ter passado por `central setup` (o `central init` faz isso).
+The commands live in [`claude/commands/central/`](../claude/commands/central/), and `install.sh` links them into `~/.claude/commands/central/`, where Claude Code exposes them as `/central:<name>`. To install them by hand, copy the files into that folder. They all use the tools of the `tmux-central` MCP server, so the project must have gone through `central setup` (`central init` does that).
 
-| Comando | Argumentos |
+| Command | Arguments |
 |---|---|
-| `/central:init` | uma primeira instrução para a central, opcional |
-| `/central:spawn` | o trabalho a delegar; aceita tickets (`TG-123`), tasks (`#2`), `--worktree` e `--cli <nome>` |
+| `/central:init` | an optional first instruction for the central |
+| `/central:spawn` | the work to delegate; accepts tickets (`TG-123`), tasks (`#2`), `--worktree` and `--cli <name>` |
 | `/central:subcheck` | `--lines <n>`, `--all` |
-| `/central:send` | `<agente> <mensagem>` |
-| `/central:tasks` | nada, `add <título> [TG-123]` ou `<#id> <status\|comentário>` |
-| `/central:kill` | `<agente> [--remove-worktree]` |
+| `/central:send` | `<agent> <message>` |
+| `/central:tasks` | nothing, `add <title> [TG-123]` or `<#id> <status\|comment>` |
+| `/central:kill` | `<agent> [--remove-worktree]` |
 
-O conteúdo de cada comando está abaixo, para quem quiser criá-los à mão ou adaptá-los a outro agente.
+The content of each command is below, for anyone who wants to create them by hand or adapt them to another agent.
 
 ## `/central:init`
 
-Arquivo: `claude/commands/central/init.md`
+File: `claude/commands/central/init.md`
 
 ````markdown
 Make this Claude session the **central** of the current project: the coordinator that delegates work
@@ -45,15 +45,15 @@ Steps:
    - Messages from subagents arrive by themselves as `[central-msg aN → central]`. Do not poll in a
      loop; use `subcheck` when the user asks or a decision needs it.
    - Automatic alerts need action right away:
-     - `📋 PLANO PARA APROVAÇÃO`: summarize the plan for the user in a few bullets (what changes,
+     - `📋 PLAN FOR APPROVAL` (`📋 PLANO PARA APROVAÇÃO` in Portuguese): summarize the plan for the user in a few bullets (what changes,
        files, risks, open decisions) and ask whether to approve or what to change. Then call
        `agent_plan_decision` (`approve`, `approve_manual`, or `change` with the feedback). Never
        approve without the user.
-     - `❓ PERGUNTAS`: show the questions briefly and say which window to answer them in.
-     - `⏸ PERMISSÃO`: say which window needs an approval.
-     - `💬 FIM DE TURNO`: the subagent stopped without a report; summarize what it said in one or
+     - `❓ QUESTIONS` (`❓ PERGUNTAS`): show the questions briefly and say which window to answer them in.
+     - `⏸ PERMISSION` (`⏸ PERMISSÃO`): say which window needs an approval.
+     - `💬 TURN ENDED` (`💬 FIM DE TURNO`): the subagent stopped without a report; summarize what it said in one or
        two sentences and whether it needs something.
-     - `✓ concluído` / `! bloqueado`: summarize the report; for a blocker, say what it needs.
+     - `✓ done` / `! blocked` (`✓ concluído` / `! bloqueado`): summarize the report; for a blocker, say what it needs.
    - Use `lock_acquire`/`lock_release` for shared resources, `note_write`/`note_read` for shared
      context and `proc_start`/`proc_logs` for dev servers.
 5. Reply with one line confirming the central is up, then act on the arguments, if any.
@@ -61,7 +61,7 @@ Steps:
 
 ## `/central:spawn`
 
-Arquivo: `claude/commands/central/spawn.md`
+File: `claude/commands/central/spawn.md`
 
 ````markdown
 Create a subagent in a new tmux window through the `tmux-central` MCP — never through the Agent/Task
@@ -86,7 +86,7 @@ Steps:
 
 ## `/central:subcheck`
 
-Arquivo: `claude/commands/central/subcheck.md`
+File: `claude/commands/central/subcheck.md`
 
 ````markdown
 Show the status of every subagent of the tmux central in this project.
@@ -108,7 +108,7 @@ Steps:
 
 ## `/central:send`
 
-Arquivo: `claude/commands/central/send.md`
+File: `claude/commands/central/send.md`
 
 ````markdown
 Send a message from the central to a subagent through the `tmux-central` MCP.
@@ -124,7 +124,7 @@ Steps:
 
 ## `/central:tasks`
 
-Arquivo: `claude/commands/central/tasks.md`
+File: `claude/commands/central/tasks.md`
 
 ````markdown
 Manage the local tasks of the tmux central (`#1`, `#2`…), each with an optional ticket id.
@@ -143,7 +143,7 @@ Steps:
 
 ## `/central:kill`
 
-Arquivo: `claude/commands/central/kill.md`
+File: `claude/commands/central/kill.md`
 
 ````markdown
 End a subagent of the tmux central and close its window.
@@ -159,16 +159,16 @@ Steps:
 3. Reply in one line.
 ````
 
-## Hook `central.sh`
+## The `central.sh` hook
 
-Arquivo: `claude/hooks/central.sh`, ligado em `~/.claude/hooks/central.sh`. Os eventos que ele recebe estão em [instalacao.md](instalacao.md#hooks-do-claude-code).
+File: `claude/hooks/central.sh`, linked to `~/.claude/hooks/central.sh`. The events it receives are listed in [installation.md](installation.md#claude-code-hooks).
 
 ````bash
 #!/usr/bin/env bash
-# Hooks do tmux-central: atualiza o status da aba (● ? ✓ ✗) e entrega
-# mensagens da fila. Só age em subagentes (CENTRAL_AGENT_ID no env) ou no
-# pane registrado como central; em qualquer outra sessão sai na hora.
-# Uso: central.sh prompt|pretool|posttool|waiting|stop|end  (JSON no stdin)
+# tmux-central hooks: update the window status (● ? ✓ ✗) and deliver
+# queued messages. Only acts on subagents (CENTRAL_AGENT_ID in the env) or on
+# the pane registered as the central; any other session exits right away.
+# Usage: central.sh prompt|pretool|posttool|waiting|ask|stop|end  (JSON on stdin)
 
 event="${1:-}"
 id="${CENTRAL_AGENT_ID:-}"
@@ -186,7 +186,7 @@ if [ -z "$id" ]; then
   id=central
 fi
 
-# Caminho rápido: já está "working", nada a fazer a cada ferramenta.
+# Fast path: already "working", nothing to do on every tool call.
 case "$event" in
   pretool|posttool)
     [ "$(cat "$dir/status/$id" 2>/dev/null)" = working ] && exit 0 ;;
