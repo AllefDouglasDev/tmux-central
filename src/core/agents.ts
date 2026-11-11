@@ -6,6 +6,7 @@ import { loadConfig } from "./config.ts";
 import { formatMessages, pending, postMessage, takePending } from "./inbox.ts";
 import { CENTRAL_WINDOW, windowName } from "./naming.ts";
 import { paths } from "./paths.ts";
+import { langOf } from "./i18n.ts";
 import { agentSystemPrompt } from "./prompts.ts";
 import {
   type Agent,
@@ -176,7 +177,7 @@ export function spawnAgent(dir: string, input: SpawnInput): Agent {
     // 3. Arquivos do agente: papel, prompt e script de execução.
     const agentDir = paths(dir).agentDir(agent.id);
     mkdirSync(agentDir, { recursive: true });
-    writeFileSync(join(agentDir, "system.md"), agentSystemPrompt(agent, tasks, state.name));
+    writeFileSync(join(agentDir, "system.md"), agentSystemPrompt(agent, tasks, state.name, langOf(dir)));
     writeFileSync(join(agentDir, "prompt.md"), input.prompt);
 
     let mcpConfig: string | undefined;

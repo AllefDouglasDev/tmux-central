@@ -5,7 +5,8 @@ import { DEFAULT_CONFIG, loadConfig } from "./config.ts";
 import { postMessage } from "./inbox.ts";
 import { CENTRAL_WINDOW, STATUS_ICON } from "./naming.ts";
 import { DIR_NAME, findCentralDir, paths, projectRoot } from "./paths.ts";
-import { CENTRAL_RULE, centralSystemPrompt } from "./prompts.ts";
+import { type Lang, langOf, texts } from "./i18n.ts";
+import { centralRule, centralSystemPrompt } from "./prompts.ts";
 import { type AgentStatus, emptyState, now, readState, stateExists, withState, writeJsonAtomic, writeStatusMirror } from "./state.ts";
 import { agentWindowName, findAgent, sendMessage, subcheck } from "./agents.ts";
 import { updateTask } from "./tasks.ts";
@@ -51,12 +52,12 @@ function registerMcp(root: string): string {
   return `MCP ${MCP_NAME} registrado (scope local, não versionado).`;
 }
 
-function addLocalRule(root: string): string | null {
+function addLocalRule(root: string, lang: Lang): string | null {
   const file = join(root, ".claude", "local", "settings.md");
   const current = existsSync(file) ? readFileSync(file, "utf8") : "";
   if (current.includes("## tmux-central")) return null;
   mkdirSync(dirname(file), { recursive: true });
-  appendFileSync(file, `${current && !current.endsWith("\n") ? "\n" : ""}${current ? "\n" : ""}${CENTRAL_RULE}`);
+  appendFileSync(file, `${current && !current.endsWith("\n") ? "\n" : ""}${current ? "\n" : ""}${centralRule(lang)}`);
   return "regra do tmux-central adicionada a .claude/local/settings.md";
 }
 
@@ -71,14 +72,14 @@ export function setup(cwd = process.cwd(), opts: { mcp?: boolean } = {}) {
     log.push(`criado ${dir}`);
   }
   if (!existsSync(paths(dir).config)) {
-    writeJsonAtomic(paths(dir).config, DEFAULT_CONFIG);
+    writeJsonAtomic(paths(dir).config, { ...DEFAULT_CONFIG, lang: process.env.CENTRAL_LANG === "en" ? "en" : "pt" });
     log.push("criado .central/config.json");
   }
   for (const p of [`/${DIR_NAME}/`, "/.claude/local/"]) {
     const r = excludeFromGit(root, p);
     if (r) log.push(r);
   }
-  const rule = addLocalRule(root);
+  const rule = addLocalRule(root, langOf(dir));
   if (rule) log.push(rule);
   if (opts.mcp !== false) log.push(registerMcp(root));
   return { dir, root, log };
@@ -146,7 +147,7 @@ export function init(opts: { claude: boolean; extraArgs: string[] }) {
       "--name",
       "central",
       "--append-system-prompt",
-      centralSystemPrompt(state.name),
+      centralSystemPrompt(state.name, langOf(dir)),
       "--allowedTools",
       "mcp__tmux-central",
       ...config.central.extraArgs,
@@ -240,9 +241,9 @@ export function report(dir: string, agentId: string, kind: ReportKind, text: str
   if (kind !== "progress") writeStatusMirror(dir, agentId, kind);
   t.renameWindow(windowId, name);
   t.refreshStatus();
-  const header = kind === "done" ? "✓ concluído" : kind === "blocked" ? "! bloqueado" : "● progresso";
-  const r = sendMessage(dir, agentId, "central", `${header}\n${text}`);
-  return r.delivered ? "Relato entregue à central." : "Relato registrado; a central recebe quando terminar o turno atual.";
+  const T = texts(dir);
+  const r = sendMessage(dir, agentId, "central", `${T.reportHeader[kind]}\n${text}`);
+  return r.delivered ? T.reportDelivered : T.reportQueued;
 }
 
 export { postMessage };

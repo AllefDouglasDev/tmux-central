@@ -8,6 +8,8 @@ export interface ProcessConfig {
 }
 
 export interface Config {
+  /** Idioma dos avisos e prompts: pt (padrão) ou en. */
+  lang: "pt" | "en";
   agent: {
     /** CLI padrão dos subagentes: claude, codex ou qualquer comando que aceite o prompt como argumento. */
     cli: string;
@@ -27,6 +29,7 @@ export interface Config {
 }
 
 export const DEFAULT_CONFIG: Config = {
+  lang: "pt",
   agent: {
     cli: "claude",
     permissionMode: "auto",

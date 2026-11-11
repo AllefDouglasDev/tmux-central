@@ -1,6 +1,7 @@
 import { appendFileSync, readFileSync } from "node:fs";
 import { setStatus } from "./agents.ts";
 import { clearAsk, onAsk, onPermission, onTool, onTurnEnd } from "./attention.ts";
+import { texts } from "./i18n.ts";
 import { formatMessages, takePending } from "./inbox.ts";
 import { findCentralDir, paths } from "./paths.ts";
 import { readState } from "./state.ts";
@@ -83,7 +84,7 @@ export function handleHook(event: string): string {
         setStatus(dir, who, "working");
         return JSON.stringify({
           decision: "block",
-          reason: `Novas mensagens chegaram pelo tmux-central:\n\n${formatMessages(msgs)}`,
+          reason: `${texts(dir).newMessages}\n\n${formatMessages(msgs)}`,
         });
       }
       if (who === "central") setStatus(dir, who, "idle", { soft: true });

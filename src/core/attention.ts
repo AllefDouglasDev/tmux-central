@@ -1,6 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { agentWindowName, findAgent, sendMessage, setStatus } from "./agents.ts";
+import { texts } from "./i18n.ts";
 import { paths } from "./paths.ts";
 import { type Agent, now, readState, withState } from "./state.ts";
 import * as t from "./tmux.ts";
@@ -16,16 +17,16 @@ interface Question {
   options?: { label?: string; description?: string }[];
 }
 
-const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}\n… (cortado)` : text);
+const clip = (text: string, max: number, cut: string) => (text.length > max ? `${text.slice(0, max)}\n${cut}` : text);
 
 function tabLabel(dir: string, agent: Agent) {
   return agentWindowName(readState(dir), agent).slice(2);
 }
 
-function formatQuestions(questions: Question[]) {
+function formatQuestions(questions: Question[], multi: string) {
   return questions
     .map((q, i) => {
-      const head = `${i + 1}. ${q.header ? `[${q.header}] ` : ""}${q.question ?? ""}${q.multiSelect ? " (várias opções)" : ""}`;
+      const head = `${i + 1}. ${q.header ? `[${q.header}] ` : ""}${q.question ?? ""}${q.multiSelect ? multi : ""}`;
       const opts = (q.options ?? []).map((o) => `   - ${o.label}${o.description ? ` — ${o.description}` : ""}`);
       return [head, ...opts].join("\n");
     })
@@ -49,21 +50,22 @@ export function onAsk(dir: string, who: string, toolName: string, toolInput: Rec
   setStatus(dir, who, "waiting");
 
   const tab = tabLabel(dir, agent);
+  const T = texts(dir);
   const body =
     kind === "plan"
       ? [
-          `📋 PLANO PARA APROVAÇÃO — ${who} (aba "${tab}")`,
-          `O subagente terminou o plano e está parado esperando aprovação.`,
-          `Resuma o plano para o usuário e pergunte se aprova ou o que mudar; depois use agent_plan_decision.`,
-          `Plano completo: ${planFile}${(toolInput.planFilePath as string) ? ` (original: ${toolInput.planFilePath})` : ""}`,
+          T.planTitle(who, tab),
+          T.planWaiting,
+          T.planHowTo,
+          T.planFile(planFile!, toolInput.planFilePath as string | undefined),
           "",
-          clip(String(toolInput.plan ?? "(plano vazio)"), MAX_PLAN),
+          clip(String(toolInput.plan ?? T.planEmpty), MAX_PLAN, T.cut),
         ].join("\n")
       : [
-          `❓ PERGUNTAS — ${who} (aba "${tab}")`,
-          `O subagente está parado esperando respostas, que o usuário dá na própria aba (Ctrl-s a ou agent_focus).`,
+          T.questionsTitle(who, tab),
+          T.questionsWaiting,
           "",
-          formatQuestions((toolInput.questions as Question[]) ?? []),
+          formatQuestions((toolInput.questions as Question[]) ?? [], T.multiSelect),
         ].join("\n");
   sendMessage(dir, who, "central", body);
 }
@@ -104,7 +106,7 @@ export function onPermission(dir: string, who: string, message?: string) {
     dir,
     who,
     "central",
-    `⏸ PERMISSÃO — ${who} (aba "${tabLabel(dir, agent)}") está parado pedindo permissão${message ? `: ${message}` : ""}. O usuário aprova na aba.`,
+    texts(dir).permission(who, tabLabel(dir, agent), message),
   );
 }
 
@@ -115,16 +117,12 @@ export function onTurnEnd(dir: string, who: string, lastMessage?: string) {
   clearAsk(dir, who);
   setStatus(dir, who, "idle", { soft: true });
   if (before.status === "done" || before.status === "blocked") return; // já relatou
+  const T = texts(dir);
   sendMessage(
     dir,
     who,
     "central",
-    [
-      `💬 FIM DE TURNO — ${who} (aba "${tabLabel(dir, before)}") parou sem report e aguarda.`,
-      "Última mensagem dele:",
-      "",
-      clip(lastMessage?.trim() || "(sem texto)", MAX_TURN),
-    ].join("\n"),
+    [T.turnEnd(who, tabLabel(dir, before)), T.lastMessage, "", clip(lastMessage?.trim() || T.noText, MAX_TURN, T.cut)].join("\n"),
   );
 }
 
